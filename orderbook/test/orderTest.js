@@ -1,52 +1,58 @@
-// const { expect } = require('chai');
+const hre = require("hardhat");
+const { expect } = require("chai");
 
-// // Import the compiled OrderBook contract
-// const OrderBook = artifacts.require('OrderBook');
-// const Token1 = artifacts.require('Token1');
-// const Token2 = artifacts.require('Token2');
 
-// contract('OrderBook', (accounts) => {
-//   let orderBook;
-//   let token1;
-//   let token2;
+describe("OrderBook", function () {
+  let orderBook;
+  let feeAddr;
+  let takerFee = 1000
+  let makerFee =500;
+  let owner ;
+  let addr1;
+  let addr2;
 
-//   const owner = accounts[0];
-//   const feeAddr = accounts[1];
-//   const takerFee = 100; // 1% taker fee
-//   const makerFee = 50; // 0.5% maker fee
 
-//   beforeEach(async () => {
-//     // Deploy the ERC20 tokens
-//     token1 = await Token1.new();
-//     token2 = await Token2.new();
+  beforeEach(async function () {
+    // Deploy the contract and set up test variables
+    const OrderBook = await hre.ethers.getContractFactory("OrderBook");
+   
+    feeAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+    takerFee = 1000; 
+    makerFee = 500; 
+    orderBook = await OrderBook.deploy(
+      "0xf67d9ad670892347ced0404556c922d6a820a334",
+      "0x184692bb70f186dfaef0a9b4eb52a0d79cf1cf97",
+      feeAddr,
+      takerFee,
+      makerFee
+    );
+    [owner, addr1, addr2] = await ethers.getSigners();
+  });
 
-//     // Deploy the OrderBook contract
-//     orderBook = await OrderBook.new(token1.address, token2.address, feeAddr, takerFee, makerFee);
-//   });
+  it("should set the initial taker fee correctly", async function () {
+    const returnedTakerFee = await orderBook.getTakerFee();
+    expect(returnedTakerFee.toString()).to.equal(takerFee.toString());
+  });
 
-//   it('should set the correct initial values', async () => {
-//     expect(await orderBook.token1()).to.equal(token1.address);
-//     expect(await orderBook.token2()).to.equal(token2.address);
-//     expect(await orderBook.feeAddr()).to.equal(feeAddr);
-//     expect(await orderBook.takerFee()).to.equal(takerFee);
-//     expect(await orderBook.makerFee()).to.equal(makerFee);
-//   });
+  it("should set the initial maker fee correctly", async function () {
+    const returnedMakerFee = await orderBook.getMakerFee();
+    expect(returnedMakerFee.toString()).to.equal(makerFee.toString());
+  });
 
-//   it('should create a new order', async () => {
-//     const token1Amt = 100;
-//     const token2Amt = 200;
-//     const priceRatio = 2;
-//     const biggerToken = 1; // Token1 is bigger
-//     const sellingToken1 = 1; // Selling Token1
+  it("should allow owner to change the taker fee", async function () {
+    const newTakerFee = 2000;
+    await orderBook.setTakerFee(newTakerFee);
+    const returnedTakerFee = await orderBook.getTakerFee();
+    expect(returnedTakerFee.toString()).to.equal(newTakerFee.toString());
+  });
 
-//     const result = await orderBook._make(token1Amt, token2Amt, priceRatio, biggerToken, sellingToken1);
-//     const orderId = result.logs[0].args.id;
+  it("should allow owner to change the maker fee", async function () {
+    const newMakerFee = 1000;
+    await orderBook.setMakerFee(newMakerFee);
+    const returnedMakerFee = await orderBook.getMakerFee();
+    expect(returnedMakerFee.toString()).to.equal(newMakerFee.toString());
+  });
 
-//     const order = await orderBook.viewOffer(orderId);
-//     expect(order.sellingTokenAmt.toNumber()).to.equal(token1Amt);
-//     expect(order.buyingTokenAmt.toNumber()).to.equal(token2Amt);
-//     expect(order.owner).to.equal(accounts[0]);
-//     expect(order.sellingToken1.toNumber()).to.equal(sellingToken1);
-//   });
+  // Add more test cases as needed
 
-// });
+});

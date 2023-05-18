@@ -13,10 +13,11 @@ describe("OrderBook", function () {
 
 
   beforeEach(async function () {
+    [owner, addr1, addr2] = await ethers.getSigners();
     // Deploy the contract and set up test variables
     const OrderBook = await hre.ethers.getContractFactory("OrderBook");
    
-    feeAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+    feeAddr = owner.address
     takerFee = 1000; 
     makerFee = 500; 
     orderBook = await OrderBook.deploy(
@@ -26,7 +27,6 @@ describe("OrderBook", function () {
       takerFee,
       makerFee
     );
-    [owner, addr1, addr2] = await ethers.getSigners();
   });
 
   it("should set the initial taker fee correctly", async function () {
@@ -53,6 +53,35 @@ describe("OrderBook", function () {
     expect(returnedMakerFee.toString()).to.equal(newMakerFee.toString());
   });
 
-  // Add more test cases as needed
+  it("should create a maker order correctly", async function () {
+    const token1Amt = 100;
+    const token2Amt = 200;
+    const priceRatio = 50;
+    const biggerToken = 1; // token1 is the bigger token
+    const sellingToken1 = 1; // token1 is being sold
+
+    const tx = await orderBook._make(
+      token1Amt,
+      token2Amt,
+      priceRatio,
+      biggerToken,
+      sellingToken1
+    );
+
+    // Check event emission
+    const offerCreateEvent = await tx.wait().then((receipt) => {
+      return receipt.events.find((event) => event.event === "OfferCreate");
+    });
+    expect(offerCreateEvent).to.not.be.undefined;
+
+    // Get the created order
+    const orderId = offerCreateEvent.args.id;
+    const order = await orderBook.viewOffer(orderId);
+    expect(order.sellingTokenAmt.toString()).to.equal(token1Amt.toString());
+    expect(order.buyingTokenAmt.toString()).to.equal(token2Amt.toString());
+    expect(order.owner.toString()).to.equal(owner.address.toString());
+    expect(order.sellingToken1.toString()).to.equal(sellingToken1.toString());
+  });
+
 
 });

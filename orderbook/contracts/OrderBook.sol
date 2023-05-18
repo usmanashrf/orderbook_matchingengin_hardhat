@@ -107,7 +107,7 @@ contract OrderBook is
         uint256 priceRatio,
         uint8 biggerToken,
         uint8 sellingToken1
-    ) internal returns (uint256 id) {
+    ) public returns (uint256 id) {
         if (sellingToken1 > 1) revert SellingTokenNotBool();
         if (token1Amt == 0 || token2Amt == 0) revert ZeroTokenAmount();
 

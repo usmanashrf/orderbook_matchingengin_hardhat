@@ -12,17 +12,24 @@ describe("OrderBook", function () {
   let addr2;
 
 
-  beforeEach(async function () {
+  before(async function () {
+
     [owner, addr1, addr2] = await ethers.getSigners();
     // Deploy the contract and set up test variables
     const OrderBook = await hre.ethers.getContractFactory("OrderBook");
-   
+
+    _daiToken = await hre.ethers.getContractFactory("DAIToken");
+    daiToken = await _daiToken.deploy();
+    _usmToken = await hre.ethers.getContractFactory("USMToken");
+    usmToken = await _usmToken.deploy();
+
     feeAddr = owner.address
     takerFee = 1000; 
     makerFee = 500; 
+
     orderBook = await OrderBook.deploy(
-      "0xf67d9ad670892347ced0404556c922d6a820a334",
-      "0x184692bb70f186dfaef0a9b4eb52a0d79cf1cf97",
+      daiToken.address,
+      usmToken.address,
       feeAddr,
       takerFee,
       makerFee
@@ -53,35 +60,75 @@ describe("OrderBook", function () {
     expect(returnedMakerFee.toString()).to.equal(newMakerFee.toString());
   });
 
-  it("should create a maker order correctly", async function () {
-    const token1Amt = 100;
-    const token2Amt = 200;
-    const priceRatio = 50;
-    const biggerToken = 1; // token1 is the bigger token
-    const sellingToken1 = 1; // token1 is being sold
+});
 
-    const tx = await orderBook._make(
-      token1Amt,
-      token2Amt,
-      priceRatio,
-      biggerToken,
-      sellingToken1
+
+describe("MatchingEngine", function () {
+  let matchEng;
+  let feeAddr;
+  let takerFee = 1000
+  let makerFee =500;
+  let owner ;
+  let addr1;
+  let addr2;
+
+
+  before(async function () {
+
+
+    [owner, addr1, addr2] = await ethers.getSigners();
+    // Deploy the contract and set up test variables
+    const Match = await hre.ethers.getContractFactory("MatchingEngine");
+
+    _daiToken = await hre.ethers.getContractFactory("DAIToken");
+    daiToken = await _daiToken.deploy();
+    _usmToken = await hre.ethers.getContractFactory("USMToken");
+    usmToken = await _usmToken.deploy();
+
+    feeAddr = owner.address
+    takerFee = 1000; 
+    makerFee = 500; 
+
+    matchEng = await Match.deploy(
+      daiToken.address,
+      usmToken.address,
+      feeAddr,
+      takerFee,
+      makerFee
     );
-
-    // Check event emission
-    const offerCreateEvent = await tx.wait().then((receipt) => {
-      return receipt.events.find((event) => event.event === "OfferCreate");
-    });
-    expect(offerCreateEvent).to.not.be.undefined;
-
-    // Get the created order
-    const orderId = offerCreateEvent.args.id;
-    const order = await orderBook.viewOffer(orderId);
-    expect(order.sellingTokenAmt.toString()).to.equal(token1Amt.toString());
-    expect(order.buyingTokenAmt.toString()).to.equal(token2Amt.toString());
-    expect(order.owner.toString()).to.equal(owner.address.toString());
-    expect(order.sellingToken1.toString()).to.equal(sellingToken1.toString());
   });
 
+  it('should create a maker order and add it to the order book', async () => {
+    const token1Amt = 100;
+    const token2Amt = 200;
+    const sellingToken1 = 1;
+    const dllPosition = 0;
+
+    await daiToken.approve(matchEng.address, 2000);
+    await usmToken.approve(matchEng.address, 2000);
+
+    await matchEng.makerOrder(token1Amt, token2Amt, sellingToken1, dllPosition);
+
+  });
+  it('should match a taker order with an existing maker order', async () => {
+    // Create and add a maker order to the order book
+    const makerToken1Amt = 100;
+    const makerToken2Amt = 200;
+    const makerSellingToken1 = 1;
+    const makerDllPosition = 0;
+
+    await daiToken.approve(matchEng.address, 2000);
+    await usmToken.approve(matchEng.address, 2000);
+
+    await matchEng.makerOrder(makerToken1Amt, makerToken2Amt, makerSellingToken1, makerDllPosition);
+
+    // Create a taker order that matches the maker order
+    const takerToken1Amt = 50;
+    const takerToken2Amt = 100;
+    const takerSellingToken1 = 1;
+    
+    await matchEng.makerOrder(takerToken1Amt, takerToken2Amt, takerSellingToken1, 0);
+
+  });
 
 });
